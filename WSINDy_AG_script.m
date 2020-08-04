@@ -91,14 +91,14 @@ elseif strcmp(ode_name, 'Duffing')
     useGLS = 1;
 
 elseif strcmp(ode_name, 'Lotka_Volterra')
-    alpha=1;beta = 10; ode_params = {alpha,beta,beta,2*alpha}; x0 = [1;0.5]; tspan = 0:0.01:25;
+    alpha=2/3;beta = 4/3; ode_params = {alpha,beta,1,1}; x0 = [10;10]; tspan = 0:0.02:200;
 
     % set common params
     polys = 0:5;
     trigs = [];
-    gamma = 10^-2;
+    gamma = 0;
     lambda_mult = 4;
-    scale_Theta = 2;
+    scale_Theta = 0;
 
     % set WSINDy params
     tau = 1;
