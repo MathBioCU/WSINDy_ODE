@@ -214,7 +214,7 @@ end
 clc;
 disp(['log10 2norm err (all weights) (WSINDy)=',num2str(log10(norm(true_nz_weights(:)-w_sparse(:))/norm(true_nz_weights(:))))])
 disp(['log10 2norm err (all weights) (SINDy)=',num2str(log10(err_sindy(1)))])
-disp(['log10 2norm err (true nz weights) (WSINDy)=',num2str(log10(norm(true_nz_weights(true_nz_weights~=0)-w_sparse(true_nz_weights~=0))/norm(true_nz_weights)))])
+disp(['log10 2norm err (true nz weights) (WSINDy)=',num2str(log10(norm(true_nz_weights(true_nz_weights~=0)-w_sparse(true_nz_weights~=0))/norm(true_nz_weights(:))))])
 disp(['log10 2norm err (true nz weights) (SINDy)=',num2str(log10(err_sindy(2)))])
 disp(['min/mean/max deg=',num2str([min(ps_all) mean(ps_all) max(ps_all)])])
 disp(['min/mean/max supp=',num2str([min(supp_range) mean(supp_range) max(supp_range)])])
