@@ -191,7 +191,7 @@ ET = toc;
 
 useFD = 0;                      % finite difference differentiation order, if =0, then uses TVdiff
 w_sparse_sindy = standard_sindy(t,xobs,Theta_0,M_diag, useFD,n,lambda,gamma);
-err_sindy = [norm(w_sparse_sindy-true_nz_weights);norm(w_sparse_sindy(true_nz_weights~=0)-true_nz_weights(true_nz_weights~=0))]/norm(true_nz_weights);        
+err_sindy = [norm(w_sparse_sindy(:)-true_nz_weights(:));norm(w_sparse_sindy(true_nz_weights~=0)-true_nz_weights(true_nz_weights~=0))]/norm(true_nz_weights(:));        
 
 %%% visualize basis and covariance, display error analysis in command window
 
