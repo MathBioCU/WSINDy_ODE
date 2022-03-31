@@ -1,26 +1,31 @@
-function [p,a,b] = test_fcn_param(r,c,t,tol)
+function [p,a,b] = test_fcn_param(r,c,t,tau_p)
+    if tau_p<0
+        tau_p = -tau_p;
+    else
+        p = tau_p;
+        tau_p=16;
+    end
 
-if ~exist('tol','var')
-    tol = 16;
-end
+    dt = t(2)-t(1);
+    r_whm = r*dt;
+    A = log2(10)*tau_p;
 
-dt = t(2)-t(1);
-r_whm = r*dt;
-A = log2(10)*tol;
+    gg = @(s) -s.^2.*((1-(r_whm./s).^2).^A-1);
+    hh = @(s) (s-dt).^2;
+    ff = @(s) hh(s)-gg(s);
 
-gg = @(s) -s.^2.*((1-(r_whm./s).^2).^A-1);
-hh = @(s) (s-dt).^2;
-ff = @(s) hh(s)-gg(s);
+    s = fzero(ff,[r_whm, r_whm*sqrt(A)+dt]);
 
-s = fzero(ff,[r_whm, r_whm*sqrt(A)+dt]);
-
-p = min(ceil(max(-1/log2(1-(r_whm/s)^2),1)),200);
-a = find(t >= (c-s),1);
-if c+s > t(end)
-    b = length(t);
-else
-    b = find(t >= (c+s),1);
-end
+    if ~exist('p','var')
+        p = min(ceil(max(-1/log2(1-(r_whm/s)^2),1)),200);
+    end
+    
+    a = find(t >= (c-s),1);
+    if c+s > t(end)
+        b = length(t);
+    else
+        b = find(t >= (c+s),1);
+    end
 end
 
 % r = 3;

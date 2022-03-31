@@ -8,7 +8,7 @@
 %%%%%%%%%%%% Selection"
 %%%%%%%%%%%% by D. A. Messenger and D. M. Bortz
 
-function [V,Vp,ab_grid,ps] = VVp_build_adaptive_whm(t,centers,r_whm,param)
+function [V,Vp,ab_grid,ps] = VVp_build_adaptive_whm(t,centers,r_whm,tau_p,param)
     if ~exist('param','var')
         param = {1,2,1}; 
     end
@@ -24,7 +24,7 @@ function [V,Vp,ab_grid,ps] = VVp_build_adaptive_whm(t,centers,r_whm,param)
     ab_grid = zeros(M,2);
     ps = zeros(M,1);
     
-    [p,a,b] = test_fcn_param(r_whm,t(centers(1)),t);
+    [p,a,b] = test_fcn_param(r_whm,t(centers(1)),t,tau_p);
     if b-a < 10    %%%%%%%% if support is less than 10 points, enforce that support is exact 10 points
         center = (a+b)/2;
         a = max(1,floor(center-5));
@@ -46,7 +46,7 @@ function [V,Vp,ab_grid,ps] = VVp_build_adaptive_whm(t,centers,r_whm,param)
             V_row = circshift(V_row,cent_shift);
             Vp_row = circshift(Vp_row,cent_shift);
         else
-            [p,a,b] = test_fcn_param(r_whm,t(centers(k)),t);
+            [p,a,b] = test_fcn_param(r_whm,t(centers(k)),t,tau_p);
             if b-a < 10
                 center = (a+b)/2;
                 b = min(ceil(center+5),length(t));
