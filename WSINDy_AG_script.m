@@ -15,10 +15,10 @@
 
 ode_num = 3;                        % select ODE system from the list ode_names
 tol_ode = 1e-15;                    % ode45 tolerance (abs and rel) for generating data
-num_runs = 1;                       % run script this many times
+num_runs = 20;                       % run script this many times
 
-noise_ratio = 0;                    % set signal-to-noise ratio (L2 sense)
-rng('shuffle');                     % comment out to use same noise as previous run for reproducibility
+noise_ratio = 0.1;                    % set signal-to-noise ratio (L2 sense)
+% rng('shuffle');                     % comment out to use same noise as previous run for reproducibility
 rng_seed =rng; 
 rng_seed =rng_seed.Seed;
 rng(rng_seed);
@@ -36,9 +36,9 @@ if ~use_preset_params
 
     % set WSINDy params
     tau_p = 9;                      % sets poly degree p = -tau_p. If tau_p<0, instead sets p by enforcing that test function has value 10^-tau_p at penultimate support point 
-    r_whm = 30;                     % test function whm - sets support length
+    r_whm = 15;                     % test function whm - sets support length
     tau = 0;                        % toggle between uniform and adapted grid
-    K = 50;                        % number of test functions per coordinate (exact for uniform, approximate for adaptive)
+    K = 200;                        % number of test functions per coordinate (exact for uniform, approximate for adaptive)
     p = 2; s = 16;                  % (parameters for adaptive grid)
     useGLS = 0;                     % toggle use generalized least squares
 end
@@ -97,13 +97,16 @@ for nn=1:num_runs
 
 %     figure(3); clf    set(gcf, 'position', [1250 10 700 450])
 
+    num_rows = 2+double(useGLS>0);
     for d=1:n
-        subplot(3,n,d) 
+        subplot(num_rows,n,d) 
         plot(tobs,xobs(:,d),'r-',tobs(floor(mean(ts_grids{d},2))),mean(xobs(:,d))*ones(size(ts_grids{d})),'.k')
-        subplot(3,n,n+d)
+        subplot(num_rows,n,n+d)
         plot(tobs,mats{d}{1}')
-        subplot(3,n,2*n+d)
-        spy(RTs{d})
+        if num_rows==3
+            subplot(num_rows,n,2*n+d)
+            spy(RTs{d})
+        end
     end
 
     supp_range = [];
@@ -121,7 +124,7 @@ for nn=1:num_runs
     disp(['num times identified (WSINDy) =',num2str(length(find(tps_list(:,1)==1))),'/',num2str(nn)])
     disp(['avg err (WSINDy) =',num2str(mean(errs_list(1:nn,1)))])
     disp(['TPR (SINDy)=',num2str(tpr_sindy)])
-    disp(['num times identified (SSINDy) =',num2str(length(find(tps_list(:,2)==1))),'/',num2str(nn)])
+    disp(['num times identified (SINDy) =',num2str(length(find(tps_list(:,2)==1))),'/',num2str(nn)])
     disp(['avg err (SINDy) =',num2str(mean(errs_list(1:nn,3)))])
     disp(['----------------'])
     disp(['min/mean/max deg=',num2str([min(ps_all) mean(ps_all) max(ps_all)])])
