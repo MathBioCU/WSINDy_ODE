@@ -13,19 +13,17 @@
 
 %%% generate clean data 
 
-dt = 0.01;
-
 ode_num = 7;                        % select ODE system from the list ode_names
 tol_ode = 1e-12;                    % ode45 tolerance (abs and rel) for generating data
 num_runs = 1;                       % run script this many times
 
 noise_ratio = 0;                    % set signal-to-noise ratio (L2 sense)
 rng('shuffle');                   % comment out to use same noise as previous run for reproducibility
-rng_seed =rng; 
-rng_seed =rng_seed.Seed;
-rng(rng_seed);
+rng_seed =rng().Seed; rng(rng_seed);
 
-useFD_SINDy = 2;                          % SINDy finite difference differentiation order, if =0, then uses TVdiff
+useFD_SINDy = 1;                          % SINDy finite difference differentiation order, if =0, then uses TVdiff
+
+dt = 0.01;
 
 use_preset_params = 0;              % use parameters in script gen_data.m
 if ~use_preset_params
@@ -37,10 +35,10 @@ if ~use_preset_params
     scale_Theta = 0;                % normalize columns of Theta (needs work)
 
     % set WSINDy params
-    tau_p = 15;                      % sets poly degree p = -tau_p. If tau_p<0, instead sets p by enforcing that test function has value 10^-tau_p at penultimate support point 
-    r_whm = 0.1/dt;                     % test function whm - sets support length
+    tau_p = 5;                      % sets poly degree p = -tau_p. If tau_p<0, instead sets p by enforcing that test function has value 10^-tau_p at penultimate support point 
+    r_whm = 0.2/dt;                     % test function whm - sets support length
     tau = 0;                        % toggle between uniform and adapted grid
-    K = 1000;                        % number of test functions per coordinate (exact for uniform, approximate for adaptive)
+    K = 500;                        % number of test functions per coordinate (exact for uniform, approximate for adaptive)
     p = 2; s = 16;                  % (parameters for adaptive grid)
     useGLS = 0;                     % toggle use generalized least squares
 end
