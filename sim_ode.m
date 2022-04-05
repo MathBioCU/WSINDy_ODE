@@ -54,6 +54,9 @@ elseif strcmp(ode_name,'Lorenz')
     weights = {[[0 1 0 sigma];[1 0 0 -sigma]],...
                       [[1 0 0 rho];[1 0 1 -1];[0 1 0 -1]],...
                       [[1 1 0 1];[0 0 1 -beta]]};                  
+elseif strcmp(ode_name,'Custom')
+    rhs = params{1};
+    weights = params{2};
 end
 
 options = odeset('RelTol',tol_ode,'AbsTol',tol_ode*ones(1,length(x0)));
