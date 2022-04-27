@@ -11,7 +11,7 @@
 %%%%%%%%%%%% Selection"
 %%%%%%%%%%%% by D. A. Messenger and D. M. Bortz
 
-function w_sparse_sindy = standard_sindy(t,xobs,Theta_0,M_diag, useFD,n,lambda,gamma)
+function [w_sparse_sindy,dxobs_0,Theta] = standard_sindy(t,xobs,Theta_0,M_diag, useFD,n,lambda,gamma)
 
 if useFD==0
     useFD=1;
@@ -38,4 +38,5 @@ if ~isempty(M_diag)
 else
     w_sparse_sindy = sparsifyDynamics(Theta_0(useFD+1:end-useFD,:),dxobs_0,lambda,n,gamma);
 end    
+Theta = Theta_0(useFD+1:end-useFD,:);
 end

@@ -13,7 +13,7 @@
 
 %%% generate clean data 
 
-ode_num = 7;                        % select ODE system from the list ode_names
+ode_num = 6;                        % select ODE system from the list ode_names
 tol_ode = 1e-12;                    % ode45 tolerance (abs and rel) for generating data
 num_runs = 1;                       % run script this many times
 
@@ -21,30 +21,30 @@ noise_ratio = 0;                    % set signal-to-noise ratio (L2 sense)
 rng('shuffle');                   % comment out to use same noise as previous run for reproducibility
 rng_seed =rng().Seed; rng(rng_seed);
 
-useFD_SINDy = 1;                          % SINDy finite difference differentiation order, if =0, then uses TVdiff
+useFD_SINDy =0;                          % SINDy finite difference differentiation order, if =0, then uses TVdiff
 
 dt = 0.01;
 
 use_preset_params = 0;              % use parameters in script gen_data.m
 if ~use_preset_params
     % library and optimization params
-    polys = 0:4;                    % polynomial degrees to include
+    polys = 0:20;                    % polynomial degrees to include
     trigs = [];                     % trig frequencies to include
     gamma = 10^-Inf;                % Tikhonov regularization
     lambda_mult = 4;                % sparsity param = min_{w*_i~=0}|w*_i|/lambda_mult
     scale_Theta = 0;                % normalize columns of Theta (needs work)
 
     % set WSINDy params
-    tau_p = 5;                      % sets poly degree p = -tau_p. If tau_p<0, instead sets p by enforcing that test function has value 10^-tau_p at penultimate support point 
-    r_whm = 0.2/dt;                     % test function whm - sets support length
+    tau_p = 9;                      % sets poly degree p = -tau_p. If tau_p<0, instead sets p by enforcing that test function has value 10^-tau_p at penultimate support point 
+    r_whm = 0.5/dt;                     % test function whm - sets support length
     tau = 0;                        % toggle between uniform and adapted grid
-    K = 500;                        % number of test functions per coordinate (exact for uniform, approximate for adaptive)
-    p = 2; s = 16;                  % (parameters for adaptive grid)
+    K = 1000;                        % number of test functions per coordinate (exact for uniform, approximate for adaptive)
+    p = 5; s = 48;                  % (parameters for adaptive grid)
     useGLS = 0;                     % toggle use generalized least squares
 end
 
 
-toggle_display_weights = 2;
+toggle_display_weights = 3;
 toggle_plot = 1;
 
 % ode params
@@ -60,21 +60,21 @@ elseif strcmp(ode_name, 'Van_der_Pol') %3
     ode_params = {4}; x0 = [0;1]; tspan = 0:dt:30;
 
 elseif strcmp(ode_name, 'Duffing') %4
-    mu = 0.2;ode_params = {mu, mu^2/4*5,1}; x0 = [0;2]; tspan = 0:0.01:30;       
+    mu = 0.2;ode_params = {mu, mu^2/4*5,1}; x0 = [0;2]; tspan = 0:dt:30;       
 
 elseif strcmp(ode_name, 'Lotka_Volterra') %5
-    alpha=2/3;beta = 4/3; ode_params = {alpha,beta,1,1}; x0 = [10;10]; tspan = 0:0.02:200;
+    alpha=3;beta = 1; ode_params = {alpha,beta,beta,2*alpha}; x0 = [1;1]; 
+    tspan = 0:dt:10;
 
 elseif strcmp(ode_name, 'Lorenz') %6
-    ode_params = {10, 8/3, 28}; tspan = .001:dt:5; x0 = [-8 7 27]';
+    ode_params = {10, 8/3, 28}; tspan = .001:dt:15; x0 = [-8 7 27]';
     %x0 = [rand(2,1)*30-15;rand*30+10]
 elseif strcmp(ode_name, 'Custom') %7
-    mu=-1;
-    tspan = .01:dt:30; x0 = [0.3 0.3]';
+    tspan = .01:dt:30; 
+    x0 = [0.3 0.3]';
     ode_func = @(x) [x(1)-x(1).^2;-0.1*x(2)+0.5*x(1)+0.5];
     weights = {[[1 0 1];[2 0 -1]], [[0 1 -0.1];[1 0 0.5];[0 0 0.5]]};
     ode_params = {ode_func, weights}; 
-    %x0 = [rand(2,1)*30-15;rand*30+10]
 end
 
 tps_list = zeros(num_runs,2);
@@ -97,7 +97,7 @@ for nn=1:num_runs
 
     if useFD_SINDy>=0
         tic;
-        w_sparse_sindy = standard_sindy(t,xobs,Theta_0,M_diag, useFD_SINDy,n,lambda,gamma);
+        [w_sparse_sindy,dxobs_0,Theta_sindy] = standard_sindy(t,xobs,Theta_0,M_diag, useFD_SINDy,n,lambda,gamma);
         ET_s = toc;
         err_sindy = [norm(w_sparse_sindy(:)-true_nz_weights(:));norm(w_sparse_sindy(true_nz_weights~=0)-true_nz_weights(true_nz_weights~=0))]/norm(true_nz_weights(:));
         tpr_sindy = tpscore(w_sparse_sindy,true_nz_weights);
@@ -122,7 +122,7 @@ for nn=1:num_runs
             subplot(num_rows,n,d) 
             plot(tobs,xobs(:,d),'r-',tobs(floor(mean(ts_grids{d},2))),mean(xobs(:,d))*ones(size(ts_grids{d})),'.k')
             subplot(num_rows,n,n+d)
-            plot(tobs,mats{d}{1}')
+            plot(tobs,mats{d}{1}(1:r_whm:end,:)')
             if num_rows==3
                 subplot(num_rows,n,2*n+d)
                 spy(RTs{d})
@@ -141,6 +141,9 @@ for nn=1:num_runs
     disp(['log10 2norm err (all weights) (SINDy)=',num2str(log10(err_sindy(1)))])
     disp(['log10 2norm err (true nz weights) (WSINDy)=',num2str(log10(err_wsindy(2)))])
     disp(['log10 2norm err (true nz weights) (SINDy)=',num2str(log10(err_sindy(2)))])
+    disp(['----------------'])
+    disp(['WSINDy resid:',num2str(cellfun(@(x,y,z) norm(x*y-z)/norm(z), Gs,mat2cell(w_sparse,size(G,2),ones(1,length(x0)))',bs)')])
+    disp(['SINDy resid:',num2str(vecnorm(Theta_sindy*w_sparse_sindy-dxobs_0)./vecnorm(dxobs_0))])
     disp(['----------------'])
     disp(['TPR (WSINDy)=',num2str(tpr_wsindy)])
     disp(['num times identified (WSINDy) =',num2str(length(find(tps_list(:,1)==1))),'/',num2str(nn)])
@@ -161,11 +164,21 @@ for nn=1:num_runs
         disp(['WSINDy, SINDy, true, library:'])
         disp([w_sparse w_sparse_sindy true_nz_weights tags])
     elseif toggle_display_weights == 2
+        disp(['WSINDy, SINDy, true'])
+        disp([w_sparse w_sparse_sindy true_nz_weights])
+    elseif toggle_display_weights == 3
         disp(['WSINDy, true, lib:'])
         disp([w_sparse true_nz_weights tags])
-    elseif toggle_display_weights == 3
+    elseif toggle_display_weights == 4
         disp(['WSINDy, true:'])
         disp([w_sparse true_nz_weights])
     end
     
 end
+
+cellfun(@(x,y,z) mean(x*y-z),Gs,mat2cell(true_nz_weights,size(G,2),ones(1,length(x0)))',bs,'UniformOutput',false)
+
+% clf
+% hold on
+% cellfun(@(x,y,z) plot((x*y-z)/mean(abs(z))),Gs,mat2cell(true_nz_weights,size(G,2),ones(1,length(x0)))',bs,'UniformOutput',false)
+% legend
