@@ -1,4 +1,4 @@
-function Xi = sparsifyDynamics(Theta,dXdt,lambda,n,gamma,M)
+function [Xi,its] = sparsifyDynamics(Theta,dXdt,lambda,n,gamma,M)
 % Copyright 2015, All Rights Reserved
 % Code by Steven L. Brunton
 % For Paper, "Discovering Governing Equations from Data: 
@@ -6,34 +6,52 @@ function Xi = sparsifyDynamics(Theta,dXdt,lambda,n,gamma,M)
 % by S. L. Brunton, J. L. Proctor, and J. N. Kutz
 %
 % Modified by Daniel A. Messenger, 2020 
-%
-% compute Sparse regression: sequential least squares
 
-if ~exist('M','var')
-    M = ones(size(Theta,2),1);
+[~,nn] =size(Theta);
+if  gamma ~= 0
+    Theta = [Theta;gamma*eye(nn)];
+    dXdt = [dXdt;zeros(nn,n)];
 end
 
-if  gamma == 0
-    Theta_reg = Theta;
-    dXdt_reg = dXdt;
+Xi = Theta \ dXdt;  % initial guess: Least-squares
+if ~isempty(M)
+    Xi = M.*Xi;
+    bnds = norm(dXdt)./vecnorm(Theta)'.*M; 
+    LBs = lambda*max(1,bnds);
+    UBs = 1/lambda*min(1,bnds);
+    thrs_EL = [LBs bnds UBs];
 else
-    nn = size(Theta,2);
-    Theta_reg = [Theta;gamma*eye(nn)];
-    dXdt_reg = [dXdt;zeros(nn,n)];
+    thrs_EL = [];
 end
 
-Xi = M.*(Theta_reg \ dXdt_reg);  % initial guess: Least-squares
-% lambda is our sparsification knob.
-for k=1:10
-    smallinds = (abs(Xi)<lambda);   % find small coefficients
-    while size(find(smallinds)) == size(Xi(:)) % make sure zero vector not returned
-        lambda = lambda/2;
-        smallinds = (abs(Xi)<lambda);   % find small coefficients
+smallinds = 0*Xi;
+for j=1:nn
+    if ~isempty(M)
+        smallinds_new = or(abs(Xi)<LBs,abs(Xi)>UBs);
+        if all(smallinds_new(:)==smallinds(:))
+            its = j;
+            return
+        else
+            smallinds = smallinds_new;
+            Xi(smallinds)=0;    
+            for ind=1:n
+                Xi(~smallinds,ind) = M(~smallinds).*(Theta(:,~smallinds)\dXdt(:,ind));
+            end
+        end
+    else
+        smallinds_new = (abs(Xi)<lambda);
+        if all(smallinds_new(:)==smallinds(:))
+            its = j;
+            return
+        else
+            smallinds = smallinds_new;
+            Xi(smallinds)=0;
+            for ind = 1:n        
+                biginds = ~smallinds(:,ind);
+                Xi(biginds,ind) = Theta(:,biginds)\dXdt(:,ind);
+            end
+        end
     end
-    Xi(smallinds)=0;                % and threshold
-    for ind = 1:n                   % n is state dimension
-        biginds = ~smallinds(:,ind);
-        % Regress dynamics onto remaining terms to find sparse Xi
-        Xi(biginds,ind) = M(biginds).*(Theta_reg(:,biginds)\dXdt_reg(:,ind));
-    end
+end
+its = nn;
 end
