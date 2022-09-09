@@ -5,6 +5,9 @@
 function W = get_smoothing_weights(xobs,tobs,m)
 
     dt = mean(diff(tobs));
+    if m==1
+        m=min(max(floor(length(tobs)/50),9),100);
+    end
 
     %%% get test function to estimate 2nd deriv
     [Cfs,~] = phi_int_weights(m,2,9,1);
@@ -18,7 +21,7 @@ function W = get_smoothing_weights(xobs,tobs,m)
     %%% 2nd moment weights
     b = fpp/2*dt^3*(-m:m)'.^2;
 
-    cvx_solver SeDuMi
+    cvx_solver SeDuMi % clear all if throws error
     cvx_precision([10^-16 10^-16 10^-16])
     cvx_begin quiet
         variable W(2*m+1,1)    

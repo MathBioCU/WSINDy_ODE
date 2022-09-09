@@ -1,5 +1,5 @@
 function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
-    ET_wsindy,ET_sindy,grids,pts,mts,Gs,bs,RTs,Theta_0,tags,bweaks,dxobs_0,vs,filter_weights] ...
+    ET_wsindy,ET_sindy,grids,pts,mts,Gs,bs,M_diag,RTs,Theta_0,tags,bweaks,dxobs_0,vs,filter_weights,xobs] ...
     = wsindy_ode_fun(xobs,tobs,weights,...
     polys,trigs,...
     phi_class,max_d,tau,tauhat,K_frac,overlap_frac,relax_AG,...
@@ -19,16 +19,17 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
         true_nz_weights = zeros(J,n);
     end
 
+
     %%% get scales
     if scale_Theta == 0
+        scale_x = [];
         M_diag = [];
-        scale_x = ones(1,n);
     elseif scale_Theta < 0
-        M_diag = ones(J,1);
-        scale_x = ones(1,n);
+        scale_x = rms(xobs)*(-scale_Theta);
+        M_diag = 1./prod(scale_x.^real(tags),2); 
     else
-        scale_x = (vecnorm(xobs.^max(real(tags)),2)).^(1./max(real(tags)));    
-        M_diag = 1./prod(scale_x.^real(tags),2);        
+        scale_x = (vecnorm(xobs.^max(real(tags)),2)).^(1./max(real(tags)));
+        M_diag = 1./prod(scale_x.^(real(tags)),2);   
     end
    
     %%% set weak form quantities
@@ -68,11 +69,7 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
         end
     end
     
-    %%% set integration line element
-    dt = mean(diff(tobs));
-    dv = mts*0+dt;%1./(2*mts+1);
-
-    %%% smooth data
+        %%% smooth data
     if smoothing_window>0
 %         smoothing_grid = linspace(-1,1,2*w+3);
 %         filter_weights = 1-smoothing_grid.^2;
@@ -87,7 +84,6 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
             filter_weights{j} = filter_weights{j}(i1:end-i1+1);
             filter_weights{j} = filter_weights{j}/sum(filter_weights{j});
             w = (length(filter_weights{j})-1)/2;
-    
             xobsj_sym = [flipud(xobs(2:w+1,j));xobs(:,j);flipud(xobs(end-w:end-1,j))];
             xobs(:,j) = conv(xobsj_sym,filter_weights{j},'valid');
         end
@@ -100,6 +96,12 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
     else
         filter_weights = {};
     end
+
+
+
+    %%% set integration line element
+    dt = mean(diff(tobs));
+    dv = mts*0+dt;%1./(2*mts+1);
 
     %%% get theta matrix
     Theta_0 = build_theta(xobs,tags,scale_x);
@@ -128,7 +130,7 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
         bweaks{nn} = bweak;
 
         %%% get linear system
-        b = conv(xobs(:,nn)/scale_x(nn),vp,'valid');
+        b = conv(xobs(:,nn),vp,'valid');
         b = b(grid_i);
         G = conv2(v,1,Theta_0,'valid');
         G = G(grid_i,:);
@@ -164,14 +166,15 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
 
         %%% regress
         if length(lambda)==1
-            [w_sparse(:,nn),its(nn)] = sparsifyDynamics(G,b,lambda,1,gamma,M_diag*scale_x(nn));
+            [w_sparse(:,nn),its(nn)] = sparsifyDynamics(G,b,lambda,1,gamma,M_diag);
             loss_wsindy = [];
         else
             if ~isempty(M_diag)
-                M_scale_b = [1/scale_x(nn);M_diag];
+                M_scale_b = [1;M_diag];
             else
                 M_scale_b = [];
             end
+%             alpha_loss = fzero(@(a) (1-a)./a-0.02*size(G,2),[0.01 1])
             [w_sparse(:,nn),loss_wsindy{nn},its(nn)] = wsindy_pde_RGLS_seq(lambda,gamma,[b G],1,M_scale_b,alpha_loss);
         end
 

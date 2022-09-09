@@ -242,7 +242,7 @@ function [err_wsindy,err_sindy,tp_w,tp_s,t_dd,x_dd,F_dd,lambda_hat_w,lambda_hat_
         xlabel('k')
     end
 
-    if toggle_plot_filter_weights>0
+    if and(toggle_plot_filter_weights>0,~isempty(filter_weights))
         legs = {};
         figure(8); clf
         for j=1:n
@@ -254,6 +254,7 @@ function [err_wsindy,err_sindy,tp_w,tp_s,t_dd,x_dd,F_dd,lambda_hat_w,lambda_hat_
         end
         ylim([0 max(cellfun(@(x)max(x),filter_weights))])
         legend(legs)
+        title('filter weights')
         hold off;
     end
 end

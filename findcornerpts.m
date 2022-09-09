@@ -8,6 +8,7 @@ function [corner,sig_est] = findcornerpts(xobs,t)
     Ufft = fftshift(fft(xobs))/sqrt(2*NN);
     tstarind1 = getcorner(cumsum(abs(Ufft(1:ceil(T/2),:))),xx);
     tstarind2 = getcorner(log(abs(Ufft(1:ceil(T/2),:))),xx);
+%     tstarind = findchangepts(cumsum(abs(Ufft(1:ceil(T/2),:))));
     tstarind = floor((tstarind1+tstarind2)/2);
     tstar = -xx(tstarind);
     corner = [tstar max(NN-tstarind-3,1)];

@@ -28,6 +28,7 @@ W = zeros(m-num_eq,num_eq);
 for l=1:length(lambdas)
     lambda = lambdas(l);
     M = [];
+
     for k=1:num_eq
         if isempty(M_scale)
             [W(:,k),~] = sparsifyDynamics(G, b(:,k), lambda, 1, gamma,[]);
@@ -42,6 +43,7 @@ for l=1:length(lambdas)
 %    proj_cost = [proj_cost 2*alpha*abs(norm(G*W-b)-norm(G*W_ls-b))/GW_ls];
     overfit_cost = [overfit_cost 2*(1-alpha)*length(find(W~=0))/length(W(:))];
     lossvals = [lossvals proj_cost(end) + overfit_cost(end)];
+    
 end
 
 l = find(lossvals == min(lossvals),1);
@@ -52,7 +54,7 @@ M = []; its = [];
 for k=1:num_eq
     if ~isempty(M_scale)
         M = [M M_scale(~ismember(1:m,lhs_ind))/M_scale(lhs_ind(k))];
-        [W(:,k),its(k)] = sparsifyDynamics(G, b(:,k), lambda,1, gamma,M(:,end));
+        [W(:,k),its(k)] = sparsifyDynamics(G, b(:,k), lambda,1, gamma, M(:,end));
     else
         [W(:,k),its(k)] = sparsifyDynamics(G, b(:,k), lambda, 1, gamma,[]);
     end
