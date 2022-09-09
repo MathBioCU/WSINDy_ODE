@@ -7,24 +7,24 @@ clc;
 
 ode_num = 4;                        % select ODE from list below
 tol_ode = 1e-12;                    % set tolerance (abs and rel) of ode45
-noise_ratio = 0.1;                    % set ratio of noise to signal (L2 sense), if negative, sets sigma to -noise_ratio
-rng('shuffle');                   % comment out to reproduce previous noise 
+noise_ratio = 0.1;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
+rng('shuffle');                     % comment out to reproduce previous noise
 rng_seed =rng().Seed;
 rng(rng_seed);
 
-dt = []; tspan = [0:0.01:30]; ode_params = {0.1, 0.1, 5}; x0 = [0;1]; % change as desired to change default ODE system settings
-% dt = []; tspan = []; ode_params = {}; x0 = []; % change as desired to change default ODE system settings
-ode_names = {'Linear','Logistic_Growth','Van_der_Pol','Duffing','Lotka_Volterra','Lorenz','Rossler','rational','Oregonator','Hindmarsh-Rose','Pendulum','custom'};
+tspan = [0:0.01:30]; ode_params = {0.1, 0.1, 5}; x0 = [0;1]; % ODE system parameters
+% tspan = []; ode_params = {}; x0 = []; % ODE system parameters
+ode_names = {'Linear','Logistic_Growth','Van_der_Pol','Duffing',... %1-4
+             'Lotka_Volterra','Lorenz','Rossler','rational',...     %5-8
+             'Oregonator','Hindmarsh-Rose','Pendulum','custom'};    %9-12
 [weights,x,t,x0,ode_name,ode_params,rhs] = gen_data(ode_num,ode_params,tspan,x0,tol_ode);
 [sigma,noise,xobs,tobs,noise_ratio_obs] = add_noise(x,noise_ratio,t);
 
 %% Set parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%% data smoothing
-expected_coeff_ratio = 100;
-[~,sigma_est] = findcornerpts(xobs(:,1),tobs);
-smoothing_window = floor( sigma_est*expected_coeff_ratio );
+%%% data smoothing - 
+smoothing_window = 30;
 
 %%% library
 polys = 0:5;                        % monomial powers to include in library
@@ -61,22 +61,23 @@ toggle_plot_resid = 0;              % plot residual with true weights and learne
 toggle_plot_loss = 0;               % plot loss function
 toggle_plot_derivs = 0;             % plot weak derivatives using adaptive grid (only for relax_AG>0)
 toggle_plot_approx_sys = 0;         % plot trapezoidal-rule integral of Theta*weights 
-toggle_plot_fft = 1;
+toggle_plot_fft = 1;                % plot data power spectrum
+toggle_plot_filter_weights = 1;     % plot smoothing filters
 
 %% get WSINDy model
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-run_sindy = 1;                      % toggle get standard SINDy model
-useFD = 0;                          % derivative method for standard SINDy.
+run_sindy = 0;                      % toggle get standard SINDy model
+useFD = 1;                          % derivative method for standard SINDy.
                                     % useFD = centered finite difference stencil width (one side). useFD = 0 calls TVdiff
 [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsindy,...
-    ET_sindy,grids,pts,mts,Gs,bs,RTs,Theta_0,tags,bweaks,dxobs_0,vs] ...
+    ET_sindy,grids,pts,mts,Gs,bs,RTs,Theta_0,tags,bweaks,dxobs_0,vs,filter_weights] ...
     ...
     = wsindy_ode_fun(xobs,tobs,weights,...
     polys,trigs,...
     phi_class,max_d,tau,tauhat,K_frac,overlap_frac,relax_AG,...
     scale_Theta,useGLS,lambda,gamma,alpha_loss,...
-    overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD,w);
+    overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD,smoothing_window);
 
 %% Display results
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -85,5 +86,5 @@ rhs_dd = build_vector_field(w_sparse, tags);
 [err_wsindy,err_sindy,tp_w,tp_s,t_dd,x_dd,F_dd,lambda_hat_w,lambda_hat_s,resid,resid_true] = display_results(w_sparse,true_nz_weights,w_sparse_sindy,loss_wsindy,...
     loss_sindy,lambda,noise_ratio,noise_ratio_obs,sigma,ET_wsindy,ET_sindy,xobs,x,tobs,t,grids,Gs,RTs,bs,Theta_0,...
     mts,pts,toggle_print_w,toggle_plot,toggle_plot_ddd,thresh,mult,toggle_plot_resid,...
-    toggle_plot_loss,toggle_plot_derivs,toggle_plot_approx_sys,toggle_plot_fft,bweaks,useFD,dxobs_0,...
-    tol_ode,x0,ode_name,ode_params,tags,vs);
+    toggle_plot_loss,toggle_plot_derivs,toggle_plot_approx_sys,toggle_plot_fft,toggle_plot_filter_weights,bweaks,useFD,dxobs_0,...
+    tol_ode,x0,ode_name,ode_params,tags,vs,filter_weights);

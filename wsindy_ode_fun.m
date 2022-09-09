@@ -1,9 +1,10 @@
-function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsindy,ET_sindy,grids,pts,mts,Gs,bs,RTs,Theta_0,tags,bweaks,dxobs_0,vs] = ...
-    wsindy_ode_fun(xobs,tobs,weights,...
+function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
+    ET_wsindy,ET_sindy,grids,pts,mts,Gs,bs,RTs,Theta_0,tags,bweaks,dxobs_0,vs,filter_weights] ...
+    = wsindy_ode_fun(xobs,tobs,weights,...
     polys,trigs,...
     phi_class,max_d,tau,tauhat,K_frac,overlap_frac,relax_AG,...
     scale_Theta,useGLS,lambda,gamma,alpha_loss,...
-    overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD,w)
+    overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD,smoothing_window)
 
     %%% get true weight vector
     n = size(xobs,2); 
@@ -60,7 +61,7 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsin
             pts = repmat(pts,n,1);
             mts = repmat(mts,n,1);
         elseif tauhat < 0  
-            [mts,pts,sig_ests,corners] = findcorners(xobs,tobs,tau,-tauhat,phi_class);
+            [mts,pts,~,~] = findcorners(xobs,tobs,tau,-tauhat,phi_class);
         else
             disp('Error: tauhat cannot be 0')
             return
@@ -72,15 +73,32 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsin
     dv = mts*0+dt;%1./(2*mts+1);
 
     %%% smooth data
-    if w>0
-        smoothing_grid = linspace(-1,1,2*w+3);
-        filter_weights = 1-smoothing_grid.^2;
-        filter_weights = filter_weights/sum(filter_weights);
-        filter_weights = filter_weights(2:end-1);
-        xobs = [flipud(xobs(2:w+1,:));xobs;flipud(xobs(end-w:end-1,:))];
+    if smoothing_window>0
+%         smoothing_grid = linspace(-1,1,2*w+3);
+%         filter_weights = 1-smoothing_grid.^2;
+%         filter_weights = filter_weights/sum(filter_weights);
+%         filter_weights = filter_weights(2:end-1);
+%         xobs = [flipud(xobs(2:w+1,:));xobs;flipud(xobs(end-w:end-1,:))];
+%         xobs = conv2(filter_weights,1,xobs,'valid');
+        filter_weights = cell(n,1);
+        for j=1:n
+            filter_weights{j} = get_smoothing_weights(xobs(:,j),tobs,smoothing_window);
+            i1 = find(filter_weights{j}>10^-6,1);
+            filter_weights{j} = filter_weights{j}(i1:end-i1+1);
+            filter_weights{j} = filter_weights{j}/sum(filter_weights{j});
+            w = (length(filter_weights{j})-1)/2;
+    
+            xobsj_sym = [flipud(xobs(2:w+1,j));xobs(:,j);flipud(xobs(end-w:end-1,j))];
+            xobs(:,j) = conv(xobsj_sym,filter_weights{j},'valid');
+        end
+
+    elseif smoothing_window<0
+        filter_weights = ones(-2*smoothing_window+1,1)/(-2*smoothing_window+1);
+        xobs = [flipud(xobs(2:smoothing_window+1,:));xobs;flipud(xobs(end-smoothing_window:end-1,:))];
         xobs = conv2(filter_weights,1,xobs,'valid');
-    elseif w<0
-        xobs = movmean(xobs,-w,1,'Endpoints','shrink');
+        filter_weights = repmat({filter_weights},1,n);
+    else
+        filter_weights = {};
     end
 
     %%% get theta matrix

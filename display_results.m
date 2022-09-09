@@ -3,8 +3,8 @@ function [err_wsindy,err_sindy,tp_w,tp_s,t_dd,x_dd,F_dd,lambda_hat_w,lambda_hat_
     w_sparse,true_nz_weights,w_sparse_sindy,loss_wsindy,...
     loss_sindy,lambda,noise_ratio,noise_ratio_obs,sigma,ET_wsindy,ET_sindy,xobs,x,tobs,t,grids,Gs,RTs,bs,Theta_0,...
     mts,pts,toggle_print_w,toggle_plot,toggle_plot_ddd,thresh,mult,toggle_plot_resid,...
-    toggle_plot_loss,toggle_plot_derivs,toggle_plot_approx_sys,toggle_plot_fft,bweaks,useFD,dxobs_0,...
-    tol_ode,x0,ode_name,ode_params,tags,vs)
+    toggle_plot_loss,toggle_plot_derivs,toggle_plot_approx_sys,toggle_plot_fft,toggle_plot_filter_weights,bweaks,useFD,dxobs_0,...
+    tol_ode,x0,ode_name,ode_params,tags,vs,filter_weights)
 
     n = length(x0);
     
@@ -242,7 +242,19 @@ function [err_wsindy,err_sindy,tp_w,tp_s,t_dd,x_dd,F_dd,lambda_hat_w,lambda_hat_
         xlabel('k')
     end
 
-
-
+    if toggle_plot_filter_weights>0
+        legs = {};
+        figure(8); clf
+        for j=1:n
+            m = (length(filter_weights{j})-1)/2;
+            x = -m:m;
+            plot(x,filter_weights{j},'o-','linewidth',2);
+            hold on
+            legs{j} = (['coord ',num2str(j)]);
+        end
+        ylim([0 max(cellfun(@(x)max(x),filter_weights))])
+        legend(legs)
+        hold off;
+    end
 end
 
