@@ -3,7 +3,7 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsin
     polys,trigs,...
     phi_class,max_d,tau,tauhat,K_frac,overlap_frac,relax_AG,...
     scale_Theta,useGLS,lambda,gamma,alpha_loss,...
-    overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD)
+    overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD,w)
 
     %%% get true weight vector
     n = size(xobs,2); 
@@ -29,11 +29,8 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsin
         scale_x = (vecnorm(xobs.^max(real(tags)),2)).^(1./max(real(tags)));    
         M_diag = 1./prod(scale_x.^real(tags),2);        
     end
-    
-    %%% get theta matrix
-    Theta_0 = build_theta(xobs,tags,scale_x);
-
-    %%% -----------------WSINDy--------------------------- 
+   
+    %%% set weak form quantities
     tic,
 
     %%% set number of test functions. *** decreases when overlapfrac<1
@@ -73,6 +70,21 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsin
     %%% set integration line element
     dt = mean(diff(tobs));
     dv = mts*0+dt;%1./(2*mts+1);
+
+    %%% smooth data
+    if w>0
+        smoothing_grid = linspace(-1,1,2*w+3);
+        filter_weights = 1-smoothing_grid.^2;
+        filter_weights = filter_weights/sum(filter_weights);
+        filter_weights = filter_weights(2:end-1);
+        xobs = [flipud(xobs(2:w+1,:));xobs;flipud(xobs(end-w:end-1,:))];
+        xobs = conv2(filter_weights,1,xobs,'valid');
+    elseif w<0
+        xobs = movmean(xobs,-w,1,'Endpoints','shrink');
+    end
+
+    %%% get theta matrix
+    Theta_0 = build_theta(xobs,tags,scale_x);
 
     w_sparse = zeros(size(Theta_0,2),n);
     grids = cell(n,1);
@@ -215,6 +227,7 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsin
         loss_sindy = loss_wsindy;
         dxobs_0 = [];
     end
+
 end
 
 function [grid_i,bweak] = get_tf_centers(tobs,mt,K,diffthresh,relax_AG,xobs,nn,mts,pts,pt_ag_fac,mt_ag_fac,overlap_frac_ag)
