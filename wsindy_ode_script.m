@@ -7,13 +7,13 @@ clc;
 
 ode_num = 4;                        % select ODE from list below
 tol_ode = 1e-12;                    % set tolerance (abs and rel) of ode45
-noise_ratio = 10^-1;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
+noise_ratio = 0.2;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
 rng('shuffle');                     % comment out to reproduce previous noise
 rng_seed =rng().Seed;
 rng(rng_seed);
 
-tspan = [0:0.01:30]; ode_params = {0.1, 0.1, 5}; x0 = [0;1]; % ODE system parameters
-% tspan = []; ode_params = {}; x0 = []; % ODE system parameters
+% tspan = [0:0.01:30]; ode_params = {0.1, 0.1, 5}; x0 = [0;1]; % ODE system parameters
+tspan = []; ode_params = {}; x0 = []; % ODE system parameters
 ode_names = {'Linear','Logistic_Growth','Van_der_Pol','Duffing',... %1-4
              'Lotka_Volterra','Lorenz','Rossler','rational',...     %5-8
              'Oregonator','Hindmarsh-Rose','Pendulum','custom'};    %9-12

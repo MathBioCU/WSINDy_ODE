@@ -13,7 +13,7 @@ function W = get_smoothing_weights(xobs,tobs,m)
     [Cfs,~] = phi_int_weights(m,2,9,1);
 
     %%% estimate 2nd deriv in weak form
-    fpp = rms(conv(xobs,Cfs(end,:)*(m*dt)^(-2)*dt,'valid'));
+    fpp = mean(abs(conv(xobs,Cfs(end,:)*(m*dt)^(-2)*dt,'valid')));
 
     %%% estimate variance
     sigma = estimate_sigma(xobs,mean(diff(tobs)));
