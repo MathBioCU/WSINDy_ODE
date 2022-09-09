@@ -10,7 +10,7 @@
 
 function [Cfs,p] = phi_int_weights(m,d,tol,phi_class)
 
-    if phi_class == 1
+    if isequal(phi_class,1)
         if tol<0
             p = -tol;
         else
@@ -42,7 +42,7 @@ function [Cfs,p] = phi_int_weights(m,d,tol,phi_class)
             end
             Cfs(k+1,:) = [(-1)^k*fliplr(Cfs_temp) Cfs_temp(2:end)];
         end
-    elseif phi_class == 2
+    elseif isequal(phi_class,2)
         if and(tol < 0,m>0)
             p = -tol;
             a = m*p;
@@ -71,10 +71,28 @@ function [Cfs,p] = phi_int_weights(m,d,tol,phi_class)
         s = (-p*m).^((0:d)');
 
         Cfs = Cfs.*(s*e);
+    elseif(isequal(class(phi_class),'function_handle'))
+        Cfs = phi_weights(phi_class,m,d);
+        p=NaN;
     end
     
-end    
+end
     
-    
-    
+function Cfs = phi_weights(phifun,m,maxd)
+    xf = linspace(-1,1,2*m+1);
+    x = xf(2:end-1);
+    Cfs = zeros(maxd+1,2*m+1);
+    syms y;
+    f = @(y)phifun(y);
+    for j=1:maxd+1
+        Df = matlabFunction(diff(f(y),j-1));
+        Cfs(j,2:end-1) = fillmissing(Df(x),'constant',Df(eps));
+        inds = find(isinf(abs(Cfs(j,:))));
+        for k=1:length(inds)
+            Cfs(j,inds(k)) = Df(xf(inds(k))-sign(xf(inds(k)))*eps);
+        end
+    end
+    Cfs = Cfs/norm(Cfs(1,:),1);
+end
+
     
