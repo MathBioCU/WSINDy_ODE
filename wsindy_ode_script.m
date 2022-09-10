@@ -7,7 +7,7 @@ clc;
 
 ode_num = 4;                        % select ODE from list below
 tol_ode = 1e-12;                    % set tolerance (abs and rel) of ode45
-noise_ratio = 0.2;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
+noise_ratio = 0.1;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
 rng('shuffle');                     % comment out to reproduce previous noise
 rng_seed =rng().Seed;
 rng(rng_seed);
