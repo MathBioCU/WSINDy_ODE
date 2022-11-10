@@ -1,19 +1,22 @@
 function [corner,sig_est] = findcornerpts(xobs,t)
     t = t(:);
-    xobs = xobs(:);
     T = length(t);
     wn = ((0:T-1)-floor(T/2))'*(2*pi)/range(t);
     xx = wn(1:ceil(end/2));
     NN = length(xx); 
-    Ufft = fftshift(fft(xobs))/sqrt(2*NN);
-    tstarind1 = getcorner(cumsum(abs(Ufft(1:ceil(T/2),:))),xx);
-    tstarind2 = getcorner(log(abs(Ufft(1:ceil(T/2),:))),xx);
-%     tstarind = findchangepts(cumsum(abs(Ufft(1:ceil(T/2),:))));
+    Ufft = mean(abs(fftshift(fft(xobs))),2)/sqrt(2*NN);
+    Ufft = Ufft(1:ceil(T/2),:);
+    [~,Umax] = max(Ufft);
+    tstarind1 = getcorner(cumsum(abs(Ufft(1:Umax))),xx(1:Umax));
+    tstarind2 = getcorner(log(abs(Ufft(1:Umax))),xx(1:Umax));
     tstarind = floor((tstarind1+tstarind2)/2);
+    %%% uncomment to use matlab's changepoint algorithm on either the
+    %%% cumulative sum or the log of the power spectrum:
+    %     tstarind = findchangepts(cumsum(Ufft));
+    %     tstarind = findchangepts(log(Ufft));
     tstar = -xx(tstarind);
-    corner = [tstar max(NN-tstarind-3,1)];
-    Ufft=fftshift(Ufft);
-    sig_est = rms(Ufft(max(floor(corner(2)*3),2):2*NN-floor(corner(2)*3)));
+    corner = [tstar max(Umax-tstarind+1,1)];
+    sig_est = rms(Ufft(1:min(corner(:,2)),:));
 end
 
 function tstarind = getcorner(Ufft,xx)
@@ -22,11 +25,12 @@ function tstarind = getcorner(Ufft,xx)
     errs = zeros(NN,1);
     for k=1:NN
         [L1,L2,m1,m2,b1,b2,Ufft_av1,Ufft_av2]=build_lines(Ufft,xx,k);
-        errs(k) = sqrt(sum(((L1-Ufft_av1)./Ufft_av1).^2) + sum(((L2-Ufft_av2)./Ufft_av2).^2)); % relative l2 
-%             errs(k) = m1^2/(1+m1^2)*norm(1:k)^2 + 1/(1+m1^2)*norm(Ufft_av1-b1)^2 + m2^2/(1+m2^2)*norm(k:NN)^2 + 1/(1+m2^2)*norm(Ufft_av2-b2)^2; % relative l2 
-%            errs(k) = norm(L1-Ufft_av1,2)/norm(Ufft_av1,2)+norm(L2-Ufft_av2,2)/norm(Ufft_av2,2); % relative l2 
-%            errs(k) = norm(L1-Ufft_av1,inf)/norm(Ufft_av1,inf)+norm(L2-Ufft_av2,inf)/norm(Ufft_av2,inf); % relative l2 
-%         A = [ones(NN+1,1) [-m1*ones(length(Ufft_av1),1);-m2*ones(length(Ufft_av2),1)]];
+%         plot(1:k,L1,k:length(xx),L2,1:length(xx),Ufft,'b-o'); drawnow; % uncomment to visualize alg
+        errs(k) = sqrt(sum(((L1-Ufft_av1)./Ufft_av1).^2) + sum(((L2-Ufft_av2)./Ufft_av2).^2)); % pointwise relative 2-norm 
+%         errs(k) = m1^2/(1+m1^2)*norm(1:k)^2 + 1/(1+m1^2)*norm(Ufft_av1-b1)^2 + m2^2/(1+m2^2)*norm(k:NN)^2 + 1/(1+m2^2)*norm(Ufft_av2-b2)^2; % total least squares v1
+%         errs(k) = norm(L1-Ufft_av1,2)/norm(Ufft_av1,2)+norm(L2-Ufft_av2,2)/norm(Ufft_av2,2); % relative 2-norm 
+%         errs(k) = norm(L1-Ufft_av1,inf)/norm(Ufft_av1,inf)+norm(L2-Ufft_av2,inf)/norm(Ufft_av2,inf); % relative inf-norm 
+%         A = [ones(NN+1,1) [-m1*ones(length(Ufft_av1),1);-m2*ones(length(Ufft_av2),1)]]; % total least squares v2 
 %         c = [-b1*ones(length(Ufft_av1),1);-b2*ones(length(Ufft_av2),1)];
 %         z = [[Ufft_av1(:) (1:k)']*(m1-1)/(m1^2+1); [Ufft_av2(:) (k:NN)']*(m2-1)/(m2^2+1)];
 %         errs(k) = norm(sum(A.*z,2)-c);        

@@ -7,7 +7,7 @@ clc;
 
 ode_num = 4;                        % select ODE from list below
 tol_ode = 1e-12;                    % set tolerance (abs and rel) of ode45
-noise_ratio = 0.1;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
+noise_ratio = 0.2;                  % set ||noise||_2/||clean signal||_2. If negative, sets sigma directly to -noise_ratio
 rng('shuffle');                     % comment out to reproduce previous noise
 rng_seed =rng().Seed;
 rng(rng_seed);
@@ -30,7 +30,7 @@ trigs = [];                         % DEFAULT: trigs = [];
                                     % ---sine / cosine frequencies to include in library
 
 %%% weak formulation
-phi_class = 1;                      % DEFAULT: phi_class = 1. 
+phi_class = @(x)exp(5./(x.^2-1-eps)); % DEFAULT: phi_class = 1. 
                                     % ---1 = piecewisepoly test functions, 
                                     % ---2 = gaussian test functions
                                     % ---function_handle = use function
@@ -83,7 +83,7 @@ relax_AG = 0;                       % convex combination between uniform and gra
                                     % adaptive grid helps for dynamics
                                     % with sharp transitions (e.g. Van der
                                     % Pol)
-useGLS = 0;                         % useGLS = 0 calls OLS. useGLS > 0 calls GLS with cov (1-useGLS)*C + useGLS*diag(C), C = Vp*Vp'
+useGLS = 10^-2;                         % useGLS = 0 calls OLS. useGLS > 0 calls GLS with cov (1-useGLS)*C + useGLS*diag(C), C = Vp*Vp'
                                     % GLS is helpful when the test
                                     % functions have very small support and
                                     % when the jacobian of the true system
@@ -107,7 +107,7 @@ toggle_plot_filter_weights = 1;     % plot smoothing filters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 run_sindy = 0;                      % toggle get standard SINDy model
-useFD = 1;                          % derivative method for standard SINDy.
+useFD = 15;                          % derivative method for standard SINDy.
                                     % useFD = centered finite difference stencil width (one side). useFD = 0 calls TVdiff
 [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,ET_wsindy,...
     ET_sindy,grids,pts,mts,Gs,bs,M_diag,RTs,Theta_0,tags,bweaks,dxobs_0,vs,filter_weights,xobs_smooth] ...
