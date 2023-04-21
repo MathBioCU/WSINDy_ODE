@@ -228,6 +228,8 @@ function [err_wsindy,err_sindy,tp_w,tp_s,t_dd,x_dd,F_dd,lambda_hat_w,lambda_hat_
         end
         legend(h1,{'x_{obs}','x','x_{approx}'},'location','best')
         title(['comparison with trap-integration of \Theta*w. rel err=',num2str(vecnorm(x_approx-x)./vecnorm(x))])
+    else
+        x_approx=[];
     end
 
     if toggle_plot_fft>0

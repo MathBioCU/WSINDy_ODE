@@ -1,6 +1,6 @@
 %% Generate clean data (x,t,weights)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% clear all;
+% clear all; close all; clc;
 
 ode_num = 6;                        % select ODE from list below
 tol_ode = 1e-12;                    % set tolerance (abs and rel) of ode45
@@ -31,7 +31,7 @@ tobs = t(1:subsamp:end); xsub = x(1:subsamp:end,:);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 rng(1);
-noise_ratio = 0.2;
+noise_ratio = 0.1;
 noise_dist = 0;
 noise_alg = 0;
 rng_seed = rng().Seed; rng(rng_seed);
@@ -45,7 +45,7 @@ polys = [0:5];                        % Monomials. DEFAULT: polys = 0:5;
 trigs = [];                         % sine / cosine terms. DEFAULT: trigs = [];
 filter = {};%{@(tags) tags(:,2)==0};
 custom_tags = [];
-custom_fcns = [];%prodlib(nstates,build_poly_lib(nstates,0:1,[],filter),build_trig_lib(nstates,[0 2 6],[],filter))';                    % custom terms. DEFAULT = {};
+custom_fcns = {};%prodlib(nstates,build_poly_lib(nstates,0:1,[],filter),build_trig_lib(nstates,[0 2 6],[],filter))';                    % custom terms. DEFAULT = {};
                                     % *(can be function handles or poly/trig tags) 
 
 %%% weak formulation
@@ -72,7 +72,7 @@ gamma = 0;                          % Tikhonov regularization. DEFAULT: gamma = 
                                     % *(helps for ill-conditioned Theta, e.g. combined trig + poly libs)
 
 %%% data smoothing 
-smoothing_window = 0*ceil(length(tobs)/100);  % rough guess for smoothing window. DEFAULT: smoothing_window = ceil(length(tobs)/100). 
+smoothing_window = ceil(length(tobs)/100);  % rough guess for smoothing window. DEFAULT: smoothing_window = ceil(length(tobs)/100). 
                                     % *(should over-estimate the optimal window)
                                     % *(if smoothing not detected to be advantageous, window length will be set to 1)
 
@@ -100,13 +100,13 @@ useGLS = 0;                     % useGLS = 0 calls OLS. useGLS > 0 calls GLS wit
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 toggle_print_w = 2;                 % print weights
-toggle_plot = 1;                    % print data, distribution of test functions, covariance sparsity
+toggle_plot = 0;                    % print data, distribution of test functions, covariance sparsity
 toggle_plot_ddd = 1;                % toggle simulate data-driven dynamics (ddd), 1 calls WSINDy weights, 2 calls SINDy weights, >2 displays error in vector field on a plot with toggle_plot_ddd points in each dimensions (dims 1,2,3) 
 thresh = {'inf',3}; mult = 0;       % thresh - stop simulation when norm(x_dd,thresh{1})>thresh{2}*max(norm(x_true,thresh{1}) 
 toggle_plot_resid = 1;              % plot residual with true weights and learned weights
 toggle_plot_loss = 1;               % plot loss function
-toggle_plot_derivs = 1;             % plot weak derivatives using adaptive grid (only for relax_AG>0)
-toggle_plot_approx_sys = 1;         % plot trapezoidal-rule integral of Theta*weights 
+toggle_plot_derivs = 0;             % plot weak derivatives using adaptive grid (only for relax_AG>0)
+toggle_plot_approx_sys = 0;         % plot trapezoidal-rule integral of Theta*weights 
 toggle_plot_fft = 1;                % plot data power spectrum
 toggle_plot_filter_weights = 1;     % plot smoothing filters
 
