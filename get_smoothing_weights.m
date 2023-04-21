@@ -21,7 +21,7 @@ function W = get_smoothing_weights(xobs,tobs,m)
     %%% 2nd moment weights
     b = fpp/2*dt^3*(-m:m)'.^2;
 
-    try 
+    try
         cvx_solver SeDuMi % clear all if throws error
         cvx_precision([10^-16 10^-16 10^-16])
         cvx_begin quiet
@@ -31,9 +31,12 @@ function W = get_smoothing_weights(xobs,tobs,m)
                 {W >= 0, dt*sum(W) == 1};
         cvx_end
         W = W*dt;
+        i1 = find(W>10^-6,1);
+        W = W(i1:end-i1+1);
+        W = W/sum(W);
     catch
         fprintf('\n Warning: CVX error, using simple moving average filter \n')
-        W = 1./(2*m+1)*ones(2*m+1,1);
+        [W,~,~] = get_optimal_SMAF(tobs,xobs,[],m,[],[],[],[],[]);
     end
 
 end

@@ -1,7 +1,7 @@
 function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
-    ET_wsindy,ET_sindy,grids,pts,mts,Gs,bs,M_diag,RTs,Theta_0,tags,bweaks,dxobs_0,vs,filter_weights,xobs] ...
+    ET_wsindy,ET_sindy,grids,pts,mts,Gs,bs,M_diag,RTs,Theta,tags,bweaks,dxobs_0,vs,filter_weights,xobs] ...
     = wsindy_ode_fun(xobs,tobs,weights,...
-    polys,trigs,...
+    polys,trigs,custom_tags,custom_fcns,...
     phi_class,max_d,tau,tauhat,K_frac,overlap_frac,relax_AG,...
     scale_Theta,useGLS,lambda,gamma,alpha_loss,...
     overlap_frac_ag,pt_ag_fac,mt_ag_fac,run_sindy,useFD,smoothing_window)
@@ -11,25 +11,22 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
     m = length(tobs);
 
     tags = get_tags(polys,trigs,n);
+    tags = unique([tags;custom_tags],'rows');
     J = size(tags,1);
 
-    if ~isempty(weights)
-        true_nz_weights = get_true_weights(weights,tags,n);
-    else
-        true_nz_weights = zeros(J,n);
-    end
-
+    true_nz_weights = get_true_weights(weights,tags,n);
 
     %%% get scales
     if scale_Theta == 0
         scale_x = [];
-        M_diag = [];
     elseif scale_Theta < 0
         scale_x = rms(xobs)*(-scale_Theta);
-        M_diag = 1./prod(scale_x.^real(tags),2); 
     else
-        scale_x = (vecnorm(xobs.^max(real(tags)),2)).^(1./max(real(tags)));
-        M_diag = 1./prod(scale_x.^(real(tags)),2);   
+        if ~isempty(real(tags))
+            scale_x = (vecnorm(xobs.^max(real(tags)),2)).^(1./max(real(tags)));
+        else
+            scale_x =[];
+        end
     end
    
     %%% set weak form quantities
@@ -79,10 +76,8 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
 %         xobs = conv2(filter_weights,1,xobs,'valid');
         filter_weights = cell(n,1);
         for j=1:n
-            filter_weights{j} = get_smoothing_weights(xobs(:,j),tobs,smoothing_window);
-            i1 = find(filter_weights{j}>10^-6,1);
-            filter_weights{j} = filter_weights{j}(i1:end-i1+1);
-            filter_weights{j} = filter_weights{j}/sum(filter_weights{j});
+%             filter_weights{j} = get_smoothing_weights(xobs(:,j),tobs,smoothing_window);
+            [filter_weights{j},~,~] = get_optimal_SMAF(tobs,xobs(:,j),[],smoothing_window,[],[],[],[],[]);
             w = (length(filter_weights{j})-1)/2;
             xobsj_sym = [flipud(xobs(2:w+1,j));xobs(:,j);flipud(xobs(end-w:end-1,j))];
             xobs(:,j) = conv(xobsj_sym,filter_weights{j},'valid');
@@ -97,16 +92,25 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
         filter_weights = {};
     end
 
-
-
     %%% set integration line element
     dt = mean(diff(tobs));
     dv = mts*0+dt;%1./(2*mts+1);
 
     %%% get theta matrix
-    Theta_0 = build_theta(xobs,tags,scale_x);
+    Theta = build_theta(xobs,tags,custom_fcns,scale_x);
 
-    w_sparse = zeros(size(Theta_0,2),n);
+    %%% get column scaling 
+    if scale_Theta == 0
+        M_diag = ones(size(Theta,2),1);
+    else
+        M_diag = 1./prod(scale_x.^real(tags),2);
+        cfun_offset = size(Theta,2)-length(M_diag);
+        if cfun_offset
+            M_diag = [M_diag;ones(cfun_offset,1)];
+        end
+    end
+
+    w_sparse = zeros(size(Theta,2),n);
     grids = cell(n,1);
     Gs = cell(n,1);
     RTs = Gs;
@@ -132,7 +136,7 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
         %%% get linear system
         b = conv(xobs(:,nn),vp,'valid');
         b = b(grid_i);
-        G = conv2(v,1,Theta_0,'valid');
+        G = conv2(v,1,Theta,'valid');
         G = G(grid_i,:);
 
         %%% apply covariance
@@ -191,59 +195,59 @@ function [w_sparse,w_sparse_sindy,true_nz_weights,loss_wsindy,loss_sindy,...
 
     tic;
     if run_sindy
-    loss_sindy = cell(n,1);
-    
-    if useFD<=0
-        L = length(tobs)-2;
-        C = fdcoeffF(1, tobs(2), tobs(1:3));
-        D = spdiags(repmat(C(:,end)',L,1), 0:2 ,L,length(tobs));
-        naive_diff = D*xobs;
-        dxobs_0 = 0*naive_diff;
-        if useFD ==0
-            reg_param = 1/sqrt(length(tobs));
-        else
-            reg_param = (-useFD)/sqrt(length(tobs));
-        end
-        for j=1:n
-            dxobs_0(:,j) = TVRegDiff( xobs(2:end-2,j), 20, reg_param, naive_diff(:,j), [], [], dt, 0, 0 );
-        end
-        Theta_sindy = Theta_0(max(useFD,1)+1:end-max(useFD,1),:);
-    else
-        L = length(tobs)-useFD*2;
-        C = fdcoeffF(1, tobs(useFD+1), tobs(1:useFD*2+1));
-        D = spdiags(repmat(C(:,end)',L,1), 0:useFD*2 ,L,length(tobs));
-        Cov_s = D*D';
-        useGLS = 0; %%% uncomment to apply covariance to standard sindy -  results improve!
-        if useGLS~=0
-            alph_RT = abs(useGLS);
-            Cov_s = (1-alph_RT)*Cov_s + alph_RT*diag(diag(Cov_s));
-            [RT_s,flag] = chol(Cov_s);
-            dxobs_0 = RT_s \ (D*xobs);
-            Theta_sindy = RT_s \ Theta_0(max(useFD,1)+1:end-max(useFD,1),:);   
-        else
-            dxobs_0 = D*xobs;
-            Theta_sindy = Theta_0(max(useFD,1)+1:end-max(useFD,1),:);   
-        end
-    end
-
-    w_sparse_sindy = 0*w_sparse;
-
-    for nn=1:n
-        if length(lambda)==1
-            [w_sparse_sindy(:,nn),its(nn)] = sparsifyDynamics(Theta_sindy,dxobs_0(:,nn),lambda,1,gamma,M_diag(2:end));
-            loss_sindy = [];
-        else            
-            if ~isempty(M_diag)
-                M_scale_b = [1;M_diag];
+        loss_sindy = cell(n,1);
+        
+        if useFD<=0
+            L = length(tobs)-2;
+            C = fdcoeffF(1, tobs(2), tobs(1:3));
+            D = spdiags(repmat(C(:,end)',L,1), 0:2 ,L,length(tobs));
+            naive_diff = D*xobs;
+            dxobs_0 = 0*naive_diff;
+            if useFD ==0
+                reg_param = 1/sqrt(length(tobs));
             else
-                M_scale_b = [];
+                reg_param = (-useFD)/sqrt(length(tobs));
             end
-            [w_sparse_sindy(:,nn),loss_sindy{nn},its(nn)] = wsindy_pde_RGLS_seq(lambda,gamma,[dxobs_0(:,nn) Theta_sindy],1,M_scale_b,alpha_loss);
+            for j=1:n
+                dxobs_0(:,j) = TVRegDiff( xobs(2:end-2,j), 20, reg_param, naive_diff(:,j), [], [], dt, 0, 0 );
+            end
+            Theta_sindy = Theta(max(useFD,1)+1:end-max(useFD,1),:);
+        else
+            L = length(tobs)-useFD*2;
+            C = fdcoeffF(1, tobs(useFD+1), tobs(1:useFD*2+1));
+            D = spdiags(repmat(C(:,end)',L,1), 0:useFD*2 ,L,length(tobs));
+            Cov_s = D*D';
+            useGLS = 0; %%% uncomment to apply covariance to standard sindy -  results improve!
+            if useGLS~=0
+                alph_RT = abs(useGLS);
+                Cov_s = (1-alph_RT)*Cov_s + alph_RT*diag(diag(Cov_s));
+                [RT_s,flag] = chol(Cov_s);
+                dxobs_0 = RT_s \ (D*xobs);
+                Theta_sindy = RT_s \ Theta(max(useFD,1)+1:end-max(useFD,1),:);   
+            else
+                dxobs_0 = D*xobs;
+                Theta_sindy = Theta(max(useFD,1)+1:end-max(useFD,1),:);   
+            end
         end
-    end
-    ET_sindy = toc;
+    
+        w_sparse_sindy = 0*w_sparse;
+    
+        for nn=1:n
+            if length(lambda)==1
+                [w_sparse_sindy(:,nn),its(nn)] = sparsifyDynamics(Theta_sindy,dxobs_0(:,nn),lambda,1,gamma,M_diag(2:end));
+                loss_sindy = [];
+            else            
+                if ~isempty(M_diag)
+                    M_scale_b = [1;M_diag];
+                else
+                    M_scale_b = [];
+                end
+                [w_sparse_sindy(:,nn),loss_sindy{nn},its(nn)] = wsindy_pde_RGLS_seq(lambda,gamma,[dxobs_0(:,nn) Theta_sindy],1,M_scale_b,alpha_loss);
+            end
+        end
+        ET_sindy = toc;
     else
-        w_sparse_sindy = 0*true_nz_weights;
+        w_sparse_sindy = 0*w_sparse;
         ET_sindy = 0;
         loss_sindy = loss_wsindy;
         dxobs_0 = [];

@@ -1,23 +1,32 @@
-function Theta = build_theta(xobs,tags,scale_x)
+function Theta = build_theta(xobs,tags,custom_fcns,scale_x)
 
-[m,n] = size(xobs);
-J = size(tags,1);
-Theta = zeros(m,J);
-if isempty(scale_x)
-    scale_x = ones(1,n);
+    [M,nstates] = size(xobs);
+    if isempty(scale_x)
+        scale_x = ones(1,nstates);
+    end
+    Theta_0 = arrayfunvec(tags',@(tag)get_col(xobs,tag,scale_x),1);
+
+    xobs_cell = mat2cell(xobs,M,ones(1,nstates));
+    try
+        Theta_1 = cell2mat(cellfun(@(y) y(xobs_cell{:}), custom_fcns(:), 'uni',0)');
+    catch
+        disp('custom fcs improperly specified, omitting from library')
+        Theta_1 = [];
+    end
+    Theta = [Theta_0 Theta_1];
+ 
 end
 
-for j = 1:J
-    if all(isreal(tags(j,:)))
-        Theta(:,j) = prod((xobs./scale_x).^(tags(j,:)),2);
+function col = get_col(xobs,tag,scale_x)
+    tag=tag(:)';
+    if all(isreal(tag))
+        col = prod((xobs./scale_x).^tag,2);
     else
-        tag = tags(j,:);
         ind = find(tag);
         if imag(tag(ind))<0
-            Theta(:,j) = sin(-imag(tag(ind))*xobs(:,ind));
+            col = sin(-imag(tag(ind))*xobs(:,ind));
         else
-            Theta(:,j) = cos(imag(tag(ind))*xobs(:,ind));
+            col = cos(imag(tag(ind))*xobs(:,ind));
         end
     end
-end
 end
